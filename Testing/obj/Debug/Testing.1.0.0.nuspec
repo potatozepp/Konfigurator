@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Testing</id>
+    <version>1.0.0</version>
+    <authors>Testing</authors>
+    <description>Package Description</description>
+    <repository type="git" />
+    <dependencies>
+      <group targetFramework="net8.0-windows7.0">
+        <dependency id="Microsoft.Data.SqlClient" version="6.0.2" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+    <frameworkReferences>
+      <group targetFramework="net8.0-windows7.0">
+        <frameworkReference name="Microsoft.WindowsDesktop.App.WPF" />
+      </group>
+    </frameworkReferences>
+  </metadata>
+  <files>
+    <file src="S:\Transfer\Stefan\Konfigurator\Testing\bin\Debug\net8.0-windows\Testing.runtimeconfig.json" target="lib\net8.0-windows7.0\Testing.runtimeconfig.json" />
+    <file src="S:\Transfer\Stefan\Konfigurator\Testing\bin\Debug\net8.0-windows\Testing.dll" target="lib\net8.0-windows7.0\Testing.dll" />
+  </files>
+</package>
