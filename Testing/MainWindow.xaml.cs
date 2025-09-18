@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Policy;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -27,11 +28,18 @@ namespace Testing
 {
     public partial class MainWindow : Window
     {
-        private string _SQL_Server = "";
-        private string _SQL_User = "";
-        private string _SQL_Password = "";
-        private string _SQL_connWarehouse = "";
-        private string _SQL_connStoreManager = "";
+        private const string DefaultAddressData = "COM3";
+        private const int DefaultPositionValue = 0;
+        private const string DefaultSqlServerDisplay = "localhost/SQLEXPRESS";
+        private const string DefaultSqlServer = @"localhost\SQLEXPRESS";
+        private const string DefaultSqlUser = "sa";
+        private const string DefaultSqlPassword = "SQL4Admin";
+
+        private string _SQL_Server = DefaultSqlServer;
+        private string _SQL_User = DefaultSqlUser;
+        private string _SQL_Password = DefaultSqlPassword;
+        private string _SQL_connWarehouse = string.Empty;
+        private string _SQL_connStoreManager = string.Empty;
 
         public MainWindow()
         {
@@ -44,6 +52,7 @@ namespace Testing
             UpdateConnectionString();
             //ReadDataFromDatabase();
             InitComboBoxes();
+            ApplyDefaultInputValues();
             setStores();
             setSizes();
             getStores();
@@ -54,9 +63,120 @@ namespace Testing
 
         private void UpdateConnectionString()
         {
-            GetSQLSettings();
-            _SQL_connWarehouse = $@"Server={_SQL_Server};Database=StoretecWarehouse; User Id=WarehouseAdmin;Password=SQL4Warehouse;TrustServerCertificate=True";
-            _SQL_connStoreManager = $@"Server={_SQL_Server};Database=StoreManager; User Id=sa;Password=SQL4Admin;TrustServerCertificate=True";
+            var (server, user, password) = ReadSqlSettings();
+
+            if (server == _SQL_Server && user == _SQL_User && password == _SQL_Password &&
+                !string.IsNullOrEmpty(_SQL_connWarehouse) && !string.IsNullOrEmpty(_SQL_connStoreManager))
+            {
+                return;
+            }
+
+            _SQL_Server = server;
+            _SQL_User = user;
+            _SQL_Password = password;
+
+            _SQL_connWarehouse = BuildConnectionString("StoretecWarehouse");
+            _SQL_connStoreManager = BuildConnectionString("StoreManager");
+        }
+
+        private (string Server, string User, string Password) ReadSqlSettings()
+        {
+            string instanceInput = txtSQLinstance?.Text?.Trim();
+            string userInput = txtSQLuser?.Text?.Trim();
+            string passwordInput = txtSQLpassword?.Text?.Trim();
+
+            string server = NormalizeSqlServer(instanceInput);
+            string user = string.IsNullOrWhiteSpace(userInput) ? DefaultSqlUser : userInput;
+            string password = string.IsNullOrWhiteSpace(passwordInput) ? DefaultSqlPassword : passwordInput;
+
+            return (server, user, password);
+        }
+
+        private static string NormalizeSqlServer(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return DefaultSqlServer;
+            }
+
+            string sanitized = input.Replace('/', '\\');
+
+            if (sanitized.Contains('\\'))
+            {
+                return sanitized;
+            }
+
+            return $@"localhost\\{sanitized}";
+        }
+
+        private string BuildConnectionString(string databaseName)
+        {
+            return $@"Server={_SQL_Server};Database={databaseName};User Id={_SQL_User};Password={_SQL_Password};TrustServerCertificate=True";
+        }
+
+        private void ApplyDefaultInputValues()
+        {
+            if (string.IsNullOrWhiteSpace(addressData.Text))
+            {
+                addressData.Text = DefaultAddressData;
+            }
+
+            positionX.Text = EnsureDefaultNumberText(positionX.Text);
+            positionY.Text = EnsureDefaultNumberText(positionY.Text);
+            positionX2.Text = EnsureDefaultNumberText(positionX2.Text);
+            positionY2.Text = EnsureDefaultNumberText(positionY2.Text);
+
+            if (string.IsNullOrWhiteSpace(txtSQLinstance.Text))
+            {
+                txtSQLinstance.Text = DefaultSqlServerDisplay;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtSQLuser.Text))
+            {
+                txtSQLuser.Text = DefaultSqlUser;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtSQLpassword.Text))
+            {
+                txtSQLpassword.Text = DefaultSqlPassword;
+            }
+        }
+
+        private static string EnsureDefaultNumberText(string currentValue)
+        {
+            return string.IsNullOrWhiteSpace(currentValue) ? DefaultPositionValue.ToString() : currentValue;
+        }
+
+        private string GetAddressPort()
+        {
+            string portText = addressData?.Text?.Trim();
+            return string.IsNullOrEmpty(portText) ? DefaultAddressData : portText;
+        }
+
+        private string BuildAddressDataJson()
+        {
+            string port = GetAddressPort();
+            return $"{{\"Port\":\"{port}\"}}";
+        }
+
+        private static int GetPositionOrDefault(TextBox textBox)
+        {
+            if (textBox == null)
+            {
+                return DefaultPositionValue;
+            }
+
+            return int.TryParse(textBox.Text, out int value) ? value : DefaultPositionValue;
+        }
+
+        private static int GetComboBoxNumberOrDefault(ComboBox comboBox)
+        {
+            if (comboBox == null)
+            {
+                return DefaultPositionValue;
+            }
+
+            return int.TryParse(comboBox.Text, out int value) ? value : DefaultPositionValue;
         }
 
 
@@ -88,6 +208,9 @@ namespace Testing
 
             // Standard-Auswahl setzen
             SetDefaultSelections();
+
+            comboPosX.SelectedItem = DefaultPositionValue;
+            comboPosY.SelectedItem = DefaultPositionValue;
         }
 
         private void AddItemsToComboBoxes(int value, params ComboBox[] boxes)
@@ -128,16 +251,9 @@ namespace Testing
             ComboBoxItem item = comboModel.SelectedItem as ComboBoxItem;
             string StoreName = item.Content.ToString();
             int type = (int)item.Tag;
-            string addressdata = addressData.Text.ToString();
-
-            int posX = int.Parse(positionX.Text);
-            int posY = int.Parse(positionY.Text);
-
-            if (addressdata == null || addressdata.Length == 0)
-            {
-                MessageBox.Show("Gib eine AddressData ein");
-                return;
-            }
+            int posX = GetPositionOrDefault(positionX);
+            int posY = GetPositionOrDefault(positionY);
+            string addressDataJson = BuildAddressDataJson();
 
             add_Model(StoreName, type, posX, posY);
             add_Sizes();
@@ -172,7 +288,7 @@ namespace Testing
                 }
                 fachAnzahl = size.faecherInEbene;
 
-                add_to_Db(von, bis, sizeId1, sizeId2, modelId, fachAnzahl, size);
+                add_to_Db(von, bis, sizeId1, sizeId2, modelId, fachAnzahl, size, addressDataJson);
             }
 
             MessageBox.Show("in DB eingefügt");
@@ -217,46 +333,6 @@ namespace Testing
             {
                 MessageBox.Show("Fehler beim Einfügen des Stores. Exception:" + ex.ToString());
             }
-        }
-
-        private void GetSQLInstance(string Instance = @"localhost\SQLEXPRESS")
-        {
-            string SQLServer = Instance;
-            if (!String.IsNullOrWhiteSpace(txtSQLinstance.Text))
-            {
-                SQLServer = @"localhost\" + txtSQLinstance.Text;
-            }
-
-            _SQL_Server = SQLServer;
-        }
-
-        private void GetSQLUser(string User = "WarehouseAdmin")
-        {
-            string SQLUser = User;
-            if (!String.IsNullOrWhiteSpace(txtSQLuser.Text))
-            {
-                SQLUser = txtSQLuser.Text;
-            }
-
-            _SQL_User = SQLUser;
-        }
-
-        private void GetSQLPassword(string Password = "SQL4Warehouse")
-        {
-            string SQLPassword = Password;
-            if (!String.IsNullOrWhiteSpace(txtSQLpassword.Text))
-            {
-                SQLPassword = txtSQLpassword.Text;
-            }
-
-            _SQL_Password = SQLPassword;
-        }
-
-        private void GetSQLSettings() {
-            // from gui or default
-            GetSQLInstance();
-            GetSQLUser();
-            GetSQLPassword();
         }
 
         private void add_Sizes()
@@ -354,7 +430,7 @@ namespace Testing
             }
         }
 
-        private void add_to_Db(int von, int bis, int size, int size2, int modelId, int fachAnzahl, Sizes sizes)
+        private void add_to_Db(int von, int bis, int size, int size2, int modelId, int fachAnzahl, Sizes sizes, string addressDataJson)
         {
             string posCode = "";
 
@@ -366,8 +442,6 @@ namespace Testing
             int sizeId = 0;
             bool doppelSize = false;
 
-            string Addressdata = addressData.Text.ToString();
-            string addressdata = "{\"Port\":\"" + Addressdata + "\"}";
 
             if (Description == "1er Fach klein" || Description == "1er Fach groß" || Description == "2er Fach klein" || Description == "2er Fach groß")
             {
@@ -422,12 +496,12 @@ namespace Testing
                                     command.Parameters.AddWithValue("@Status", 0);
                                     command.Parameters.AddWithValue("@ReservationLimit", 1);
                                     command.Parameters.AddWithValue("@StoreId", modelId);
-                                    command.Parameters.AddWithValue("@AddressData", addressdata);
+                                    command.Parameters.AddWithValue("@AddressData", addressDataJson);
 
                                     inserted += command.ExecuteNonQuery();
                                     command.Parameters.Clear();
 
-                                    string escapedAddressData = addressdata.Replace("\"", "\"\""); // oder eigene EscapeSql Methode
+                                    string escapedAddressData = addressDataJson.Replace("\"", "\"\"");
 
                                     string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES " +
                                         $"({sizeId}, {i}, {ebene}, 0, '{posCode}', 0, 1, {modelId}, '{escapedAddressData}');";
@@ -453,15 +527,9 @@ namespace Testing
             ComboBoxItem item = comboModel.SelectedItem as ComboBoxItem;
             string StoreName = item.Content.ToString();
             int type = (int)item.Tag;
-            string data = addressData.Text.ToString();
-            int posX = int.Parse(positionX.Text);
-            int posY = int.Parse(positionY.Text);
-            if (data == null || data.Length == 0)
-            {
-                MessageBox.Show("Gib eine AddressData ein");
-                return;
-            }
-            string addressdata = "{\"Port\":\"" + data + "\"}";
+            int posX = GetPositionOrDefault(positionX);
+            int posY = GetPositionOrDefault(positionY);
+            string addressDataJson = BuildAddressDataJson();
 
             add_Model(StoreName, type, posX, posY);
             add_Sizes();
@@ -532,13 +600,13 @@ namespace Testing
                                 command.Parameters.AddWithValue("@Status", 0);
                                 command.Parameters.AddWithValue("@ReservationLimit", 1);
                                 command.Parameters.AddWithValue("@StoreId", modelId);
-                                command.Parameters.AddWithValue("@AddressData", addressdata);
+                                command.Parameters.AddWithValue("@AddressData", addressDataJson);
 
                                 inserted += command.ExecuteNonQuery();
                                 command.Parameters.Clear();
 
                                 string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) " +
-                                         $"VALUES ({size}, {i}, {ebene}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressdata)}');";
+                                         $"VALUES ({size}, {i}, {ebene}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
                                 File.AppendAllText(filePath, sqlLine + Environment.NewLine);
                             }
                         }
@@ -562,13 +630,13 @@ namespace Testing
                             command.Parameters.AddWithValue("@Status", 0);
                             command.Parameters.AddWithValue("@ReservationLimit", 1);
                             command.Parameters.AddWithValue("@StoreId", modelId);
-                            command.Parameters.AddWithValue("@AddressData", addressdata);
+                            command.Parameters.AddWithValue("@AddressData", addressDataJson);
 
                             inserted += command.ExecuteNonQuery();
                             command.Parameters.Clear();
 
                             string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) " +
-                                     $"VALUES ({schublade1}, 1, {i}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressdata)}');";
+                                     $"VALUES ({schublade1}, 1, {i}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
                             File.AppendAllText(filePath, sqlLine + Environment.NewLine);
 
                         }
@@ -583,13 +651,13 @@ namespace Testing
                             command.Parameters.AddWithValue("@Status", 0);
                             command.Parameters.AddWithValue("@ReservationLimit", 1);
                             command.Parameters.AddWithValue("@StoreId", modelId);
-                            command.Parameters.AddWithValue("@AddressData", addressdata);
+                            command.Parameters.AddWithValue("@AddressData", addressDataJson);
 
                             inserted += command.ExecuteNonQuery();
                             command.Parameters.Clear();
 
                             string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) " +
-                                     $"VALUES ({schublade2}, 1, {i}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressdata)}');";
+                                     $"VALUES ({schublade2}, 1, {i}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
                             File.AppendAllText(filePath, sqlLine + Environment.NewLine);
 
                         }
@@ -613,21 +681,14 @@ namespace Testing
             ComboBoxItem item = comboModel.SelectedItem as ComboBoxItem;
             string StoreName = item.Content.ToString();
             int type = (int)item.Tag;
-            string data = addressData.Text.ToString();
-            int posX = int.Parse(positionX.Text);
-            int posY = int.Parse(positionY.Text);
+            int posX = GetPositionOrDefault(positionX);
+            int posY = GetPositionOrDefault(positionY);
             int size = 0;
             string posCode = "";
             int sizeId1 = 0;
             int sizeId2 = 0;
 
-
-            if (data == null || data.Length == 0)
-            {
-                MessageBox.Show("Gib eine AddressData ein");
-                return;
-            }
-            string addressdata = "{\"Port\":\"" + data + "\"}";
+            string addressDataJson = BuildAddressDataJson();
 
             add_Model(StoreName, type, posX, posY);
             add_Sizes();
@@ -685,12 +746,12 @@ namespace Testing
                                 command.Parameters.AddWithValue("@Status", 0);
                                 command.Parameters.AddWithValue("@ReservationLimit", 1);
                                 command.Parameters.AddWithValue("@StoreId", modelId);
-                                command.Parameters.AddWithValue("@AddressData", addressdata);
+                                command.Parameters.AddWithValue("@AddressData", addressDataJson);
 
                                 command.ExecuteNonQuery();
                                 command.Parameters.Clear();
 
-                                string sqlInsert = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES " + $"({size}, {i}, {ebene}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressdata)}');";
+                                string sqlInsert = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES " + $"({size}, {i}, {ebene}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
 
                                 File.AppendAllText(filePath, sqlInsert + Environment.NewLine);
                             }
@@ -885,8 +946,8 @@ namespace Testing
         {
             var selectedStore = comboStores.SelectedItem as ComboBoxItem;
             int storeId = (int)selectedStore.Tag;
-            int PosX = int.Parse(comboPosX.Text.ToString());
-            int PosY = int.Parse(comboPosY.Text.ToString());
+            int PosX = GetComboBoxNumberOrDefault(comboPosX);
+            int PosY = GetComboBoxNumberOrDefault(comboPosY);
 
             UpdateConnectionString();
             string connectionString = _SQL_connWarehouse;
@@ -1208,7 +1269,7 @@ namespace Testing
             }
         }
 
-        public class Buttons()
+        public class Buttons
         {
             public string content { get; set; }
             public int spalte { get; set; }
@@ -1566,7 +1627,7 @@ namespace Testing
                 return;
             }
 
-            add_Model("Locker", 2, int.Parse(positionX2.Text.ToString()), int.Parse(positionY2.Text.ToString()));
+            add_Model("Locker", 2, GetPositionOrDefault(positionX2), GetPositionOrDefault(positionY2));
 
             UpdateConnectionString();
             string connectionString = _SQL_connWarehouse;
@@ -1742,15 +1803,17 @@ namespace Testing
 
                     using (SqlCommand command = new SqlCommand(insertquery, connection))
                     {
+                        int lockerPosition = GetPositionOrDefault(positionX2);
                         command.Parameters.AddWithValue("@AutomatNr", automatNr);
                         command.Parameters.AddWithValue("@Port", "STL");
-                        command.Parameters.AddWithValue("@Position", int.Parse(positionX2.Text.ToString()));
+                        command.Parameters.AddWithValue("@Position", lockerPosition);
                         command.Parameters.AddWithValue("@Schranktyp", 2);
                         inserted += command.ExecuteNonQuery();
                     }
                 }
 
-                string sqlInsert = $"INSERT INTO SerialPorts(AutomatNr, Port, Position, Schranktyp) values ('{automatNr}','STL', {int.Parse(positionX2.Text.ToString())},2);{Environment.NewLine}";
+                int lockerPositionForSql = GetPositionOrDefault(positionX2);
+                string sqlInsert = $"INSERT INTO SerialPorts(AutomatNr, Port, Position, Schranktyp) values ('{automatNr}','STL', {lockerPositionForSql},2);{Environment.NewLine}";
 
                 // Pfad zur SQL-Datei (kann angepasst werden)
                 string filePath = @"C:\soft\configuration.sql";
