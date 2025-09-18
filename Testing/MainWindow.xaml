@@ -74,13 +74,13 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="24" RowSpacing="20">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Style="{StaticResource CardBorderStyle}" Background="#1D4ED8" Padding="24" CornerRadius="16">
+        <Border Style="{StaticResource CardBorderStyle}" Background="#1D4ED8" Padding="24" CornerRadius="16" Margin="0,0,0,20">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -90,25 +90,25 @@
                     <TextBlock Text="Store Konfigurator" FontSize="28" FontWeight="Bold" Foreground="White"/>
                     <TextBlock Text="Verwalten Sie vorhandene Systeme oder erstellen Sie neue Konfigurationen in einem modernen Layout." Foreground="#E2E8F0" Margin="0,6,0,0"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
-                    <Button x:Name="btnStartNew" Content="Neue Konfiguration" Style="{StaticResource AccentButton}" Click="StartNewConfiguration_Click"/>
-                    <Button x:Name="btnApplyRanges" Content="Fächer aktualisieren" Style="{StaticResource SecondaryButton}" Click="ApplyRanges_Click"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="btnStartNew" Content="Neue Konfiguration" Style="{StaticResource AccentButton}" Click="StartNewConfiguration_Click" Margin="0,0,12,0"/>
+                    <Button x:Name="btnApplyRanges" Content="Fächer aktualisieren" Style="{StaticResource SecondaryButton}" Click="ApplyRanges_Click" Margin="0"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" ColumnSpacing="20">
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1.2*"/>
                 <ColumnDefinition Width="2.8*"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" VerticalAlignment="Stretch" Spacing="20">
-                <Border Style="{StaticResource CardBorderStyle}">
+            <StackPanel Grid.Column="0" VerticalAlignment="Stretch" Margin="0,0,20,0">
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,20">
                     <StackPanel>
                         <TextBlock Text="Vorhandene Systeme" Style="{StaticResource SectionTitle}"/>
                         <TextBlock Text="Konfigurationen werden beim Start automatisch geladen. Wählen Sie einen Eintrag aus, um ihn zu laden oder zu löschen." Foreground="#475569" Margin="0,0,0,16" TextWrapping="Wrap"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="0,0,0,12" Spacing="8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="0,0,0,12">
                             <Button x:Name="btnRefreshConfigs" Content="Liste aktualisieren" Style="{StaticResource SecondaryButton}" Click="RefreshConfigurations_Click"/>
                         </StackPanel>
                         <ListView x:Name="existingConfigsList" Height="360" SelectionMode="Single" SelectionChanged="ExistingConfigsList_SelectionChanged">
@@ -117,26 +117,26 @@
                                     <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8" Background="#F8FAFC">
                                         <StackPanel>
                                             <TextBlock Text="{Binding StoreName}" FontWeight="Bold" FontSize="16" Foreground="#0F172A"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Spacing="12">
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                 <TextBlock Text="ID:" FontWeight="SemiBold" Foreground="#475569"/>
-                                                <TextBlock Text="{Binding StoreId}" Foreground="#475569"/>
-                                                <TextBlock Text="Typ:" FontWeight="SemiBold" Foreground="#475569"/>
-                                                <TextBlock Text="{Binding Type}" Foreground="#475569"/>
+                                                <TextBlock Text="{Binding StoreId}" Foreground="#475569" Margin="12,0,0,0"/>
+                                                <TextBlock Text="Typ:" FontWeight="SemiBold" Foreground="#475569" Margin="12,0,0,0"/>
+                                                <TextBlock Text="{Binding Type}" Foreground="#475569" Margin="12,0,0,0"/>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" Spacing="12">
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                 <TextBlock Text="PosX:" FontWeight="SemiBold" Foreground="#475569"/>
-                                                <TextBlock Text="{Binding PosX}" Foreground="#475569"/>
-                                                <TextBlock Text="PosY:" FontWeight="SemiBold" Foreground="#475569"/>
-                                                <TextBlock Text="{Binding PosY}" Foreground="#475569"/>
+                                                <TextBlock Text="{Binding PosX}" Foreground="#475569" Margin="12,0,0,0"/>
+                                                <TextBlock Text="PosY:" FontWeight="SemiBold" Foreground="#475569" Margin="12,0,0,0"/>
+                                                <TextBlock Text="{Binding PosY}" Foreground="#475569" Margin="12,0,0,0"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0" Spacing="10">
-                            <Button x:Name="btnLoadSelected" Content="Auswahl laden" Style="{StaticResource AccentButton}" Click="LoadConfiguration_Click" IsEnabled="False"/>
-                            <Button x:Name="btnDeleteSelected" Content="Auswahl löschen" Style="{StaticResource SecondaryButton}" Click="DeleteSelectedConfiguration_Click" IsEnabled="False"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                            <Button x:Name="btnLoadSelected" Content="Auswahl laden" Style="{StaticResource AccentButton}" Click="LoadConfiguration_Click" IsEnabled="False" Margin="0,0,10,0"/>
+                            <Button x:Name="btnDeleteSelected" Content="Auswahl löschen" Style="{StaticResource SecondaryButton}" Click="DeleteSelectedConfiguration_Click" IsEnabled="False" Margin="0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -151,15 +151,15 @@
             </StackPanel>
 
             <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
-                <Grid RowSpacing="20">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,0,20">
                         <TextBlock Text="Bereit zum Speichern" VerticalAlignment="Center" Foreground="#475569"/>
-                        <Button Content="Konfiguration speichern" Style="{StaticResource AccentButton}" Click="Add_Click"/>
+                        <Button Content="Konfiguration speichern" Style="{StaticResource AccentButton}" Click="Add_Click" Margin="12,0,0,0"/>
                     </StackPanel>
 
                     <TabControl x:Name="MainTabControl" Grid.Row="1">
@@ -171,25 +171,25 @@
                                 </Grid.ColumnDefinitions>
 
                                 <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-                                    <StackPanel Margin="0" Spacing="16">
-                                        <GroupBox Header="Schrankeinstellungen">
+                                    <StackPanel Margin="0">
+                                        <GroupBox Header="Schrankeinstellungen" Margin="0,0,0,16">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0,5">
                                                     <TextBlock Text="Schrankvariante" Width="140" VerticalAlignment="Center"/>
                                                     <ComboBox x:Name="comboSchrankvariante" Width="120" SelectionChanged="lockerArt_Change"/>
                                                 </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,5" Spacing="5">
+                                                <StackPanel Orientation="Horizontal" Margin="0,5">
                                                     <TextBlock Text="Anzahl Türen" Width="140"/>
-                                                    <TextBox x:Name="schacht1" Width="40"/>
-                                                    <TextBox x:Name="schacht2" Width="40"/>
-                                                    <TextBox x:Name="schacht3" Width="40"/>
-                                                    <TextBox x:Name="schacht4" Width="40"/>
+                                                    <TextBox x:Name="schacht1" Width="40" Margin="5,0,0,0"/>
+                                                    <TextBox x:Name="schacht2" Width="40" Margin="5,0,0,0"/>
+                                                    <TextBox x:Name="schacht3" Width="40" Margin="5,0,0,0"/>
+                                                    <TextBox x:Name="schacht4" Width="40" Margin="5,0,0,0"/>
                                                 </StackPanel>
                                                 <Button Content="Schrank erstellen" Margin="0,10,0,0" Style="{StaticResource AccentButton}" Click="ErzeugeMatrix"/>
                                             </StackPanel>
                                         </GroupBox>
 
-                                        <GroupBox Header="Boards verwalten">
+                                        <GroupBox Header="Boards verwalten" Margin="0,0,0,16">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0,5">
                                                     <TextBlock Text="Router IF" Width="80"/>
@@ -206,42 +206,42 @@
                                                         </DataTemplate>
                                                     </ListBox.ItemTemplate>
                                                 </ListBox>
-                                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                                    <Button Content="Entfernen" Width="110" Click="remove_Board"/>
-                                                    <Button Content="Zuweisen" Width="110" Click="zuweisen_Board"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button Content="Entfernen" Width="110" Click="remove_Board" Margin="0,0,10,0"/>
+                                                    <Button Content="Zuweisen" Width="110" Click="zuweisen_Board" Margin="0"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </GroupBox>
 
-                                        <GroupBox Header="Ausgewählte Türen">
+                                        <GroupBox Header="Ausgewählte Türen" Margin="0,0,0,16">
                                             <ListBox x:Name="listAusgewaehlteButtons" Height="70" SelectionMode="Extended"/>
                                         </GroupBox>
 
-                                        <GroupBox Header="Größe der Türen">
-                                            <StackPanel Orientation="Horizontal" Margin="0,5" Spacing="8">
+                                        <GroupBox Header="Größe der Türen" Margin="0,0,0,16">
+                                            <StackPanel Orientation="Horizontal" Margin="0,5">
                                                 <TextBlock Text="Größe" Width="80"/>
-                                                <ComboBox x:Name="schachtSize" IsEditable="True" Width="120" SelectionChanged="RangeSelectionChanged"/>
-                                                <Button Content="Zuweisen" Width="100" Click="zuweisen_Size"/>
+                                                <ComboBox x:Name="schachtSize" IsEditable="True" Width="120" SelectionChanged="RangeSelectionChanged" Margin="8,0,0,0"/>
+                                                <Button Content="Zuweisen" Width="100" Click="zuweisen_Size" Margin="8,0,0,0"/>
                                             </StackPanel>
                                         </GroupBox>
 
-                                        <GroupBox Header="Position">
+                                        <GroupBox Header="Position" Margin="0,0,0,16">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,2" Spacing="8">
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
                                                     <Label Content="PosX" Width="60" VerticalAlignment="Center"/>
-                                                    <TextBox x:Name="positionX2" Width="70" TextAlignment="Center" VerticalContentAlignment="Center"/>
+                                                    <TextBox x:Name="positionX2" Width="70" TextAlignment="Center" VerticalContentAlignment="Center" Margin="8,0,0,0"/>
                                                 </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,2" Spacing="8">
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
                                                     <Label Content="PosY" Width="60" VerticalAlignment="Center"/>
-                                                    <TextBox x:Name="positionY2" Width="70" TextAlignment="Center" VerticalContentAlignment="Center"/>
+                                                    <TextBox x:Name="positionY2" Width="70" TextAlignment="Center" VerticalContentAlignment="Center" Margin="8,0,0,0"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </GroupBox>
 
-                                        <GroupBox Header="Konfiguration speichern">
-                                            <StackPanel Orientation="Horizontal" Margin="0,5" Spacing="10">
-                                                <Button Content="Alten Schrank einfügen" Width="150" Click="OldLocker_to_DB"/>
-                                                <Button Content="Neuen Schrank einfügen" Width="160" Click="Locker_to_DB"/>
+                                        <GroupBox Header="Konfiguration speichern" Margin="0,0,0,16">
+                                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                                <Button Content="Alten Schrank einfügen" Width="150" Click="OldLocker_to_DB" Margin="0,0,10,0"/>
+                                                <Button Content="Neuen Schrank einfügen" Width="160" Click="Locker_to_DB" Margin="0"/>
                                             </StackPanel>
                                         </GroupBox>
                                     </StackPanel>
@@ -266,69 +266,69 @@
                                         <ColumnDefinition Width="2*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0" Spacing="12">
+                                    <StackPanel Grid.Column="0">
                                         <StackPanel Margin="0,0,0,10">
                                             <Label Content="Modell auswählen:"/>
                                             <ComboBox x:Name="comboModel" Width="220" SelectionChanged="comboModel_SelectionChanged"/>
                                         </StackPanel>
 
-                                        <StackPanel x:Name="panel" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed" Spacing="8">
+                                        <StackPanel x:Name="panel" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed">
                                             <Label Content="Ebene von:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxVon" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="bis:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxBis" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="Size:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxSize" Width="90" SelectionChanged="RangeSelectionChanged"/>
+                                            <ComboBox x:Name="comboBoxVon" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="bis:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxBis" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="Size:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxSize" Width="90" SelectionChanged="RangeSelectionChanged" Margin="8,0,0,0"/>
                                         </StackPanel>
 
-                                        <StackPanel x:Name="panel2" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed" Spacing="8">
+                                        <StackPanel x:Name="panel2" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed">
                                             <Label Content="Ebene von:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxVon2" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="bis:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxBis2" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="Size:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxSize2" Width="90" SelectionChanged="RangeSelectionChanged"/>
+                                            <ComboBox x:Name="comboBoxVon2" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="bis:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxBis2" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="Size:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxSize2" Width="90" SelectionChanged="RangeSelectionChanged" Margin="8,0,0,0"/>
                                         </StackPanel>
 
-                                        <StackPanel x:Name="panel3" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed" Spacing="8">
+                                        <StackPanel x:Name="panel3" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed">
                                             <Label Content="Ebene von:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxVon3" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="bis:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxBis3" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="Size:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxSize3" Width="90" SelectionChanged="RangeSelectionChanged"/>
+                                            <ComboBox x:Name="comboBoxVon3" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="bis:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxBis3" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="Size:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxSize3" Width="90" SelectionChanged="RangeSelectionChanged" Margin="8,0,0,0"/>
                                         </StackPanel>
 
-                                        <StackPanel x:Name="panel4" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed" Spacing="8">
+                                        <StackPanel x:Name="panel4" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed">
                                             <Label Content="Ebene von:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxVon4" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="bis:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxBis4" Width="60" SelectionChanged="boxVonBis_Changed"/>
-                                            <Label Content="Size:" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="comboBoxSize4" Width="90" SelectionChanged="RangeSelectionChanged"/>
+                                            <ComboBox x:Name="comboBoxVon4" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="bis:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxBis4" Width="60" SelectionChanged="boxVonBis_Changed" Margin="8,0,0,0"/>
+                                            <Label Content="Size:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            <ComboBox x:Name="comboBoxSize4" Width="90" SelectionChanged="RangeSelectionChanged" Margin="8,0,0,0"/>
                                         </StackPanel>
 
-                                        <StackPanel x:Name="panel21" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed" Spacing="8">
+                                        <StackPanel x:Name="panel21" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed">
                                             <Label Content="Anzahl an Schubladen" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="anzahlSchubladen" Width="60"/>
-                                            <Button Content="in DB einfügen" Width="120" Click="Duo_to_DB"/>
+                                            <ComboBox x:Name="anzahlSchubladen" Width="60" Margin="8,0,0,0"/>
+                                            <Button Content="in DB einfügen" Width="120" Click="Duo_to_DB" Margin="8,0,0,0"/>
                                         </StackPanel>
 
-                                        <StackPanel x:Name="panelSimpli" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed" Spacing="8">
+                                        <StackPanel x:Name="panelSimpli" Orientation="Horizontal" Margin="0,0,0,10" Visibility="Collapsed">
                                             <Label Content="Art" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="artSimpli" Width="70"/>
-                                            <Button Content="in DB einfügen" Width="120" Click="simpli_to_Db"/>
+                                            <ComboBox x:Name="artSimpli" Width="70" Margin="8,0,0,0"/>
+                                            <Button Content="in DB einfügen" Width="120" Click="simpli_to_Db" Margin="8,0,0,0"/>
                                         </StackPanel>
 
                                         <TextBlock x:Name="panel5" Text="⚠️ Ebenen sind falsch eingetragen" Foreground="DarkOrange" Visibility="Hidden" Margin="0,10,0,0"/>
 
-                                        <StackPanel x:Name="panelAddress" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="10">
+                                        <StackPanel x:Name="panelAddress" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center" HorizontalAlignment="Left">
                                             <Label Content="AddressData" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="addressData" Width="120" TextAlignment="Center" VerticalContentAlignment="Center"/>
-                                            <Label Content="PosX" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="positionX" Width="80" TextAlignment="Center" VerticalContentAlignment="Center"/>
-                                            <Label Content="PosY" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="positionY" Width="80" TextAlignment="Center" VerticalContentAlignment="Center"/>
+                                            <TextBox x:Name="addressData" Width="120" TextAlignment="Center" VerticalContentAlignment="Center" Margin="10,0,0,0"/>
+                                            <Label Content="PosX" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                            <TextBox x:Name="positionX" Width="80" TextAlignment="Center" VerticalContentAlignment="Center" Margin="10,0,0,0"/>
+                                            <Label Content="PosY" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                            <TextBox x:Name="positionY" Width="80" TextAlignment="Center" VerticalContentAlignment="Center" Margin="10,0,0,0"/>
                                         </StackPanel>
                                     </StackPanel>
 
