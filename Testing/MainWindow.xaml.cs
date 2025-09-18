@@ -1,7 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -40,6 +39,7 @@ namespace Testing
         private string _SQL_Password = DefaultSqlPassword;
         private string _SQL_connWarehouse = string.Empty;
         private string _SQL_connStoreManager = string.Empty;
+        private readonly SqlScriptCollector _sqlScriptCollector = new SqlScriptCollector();
 
         public MainWindow()
         {
@@ -157,6 +157,11 @@ namespace Testing
         {
             string port = GetAddressPort();
             return $"{{\"Port\":\"{port}\"}}";
+        }
+
+        private void AppendSqlStatement(string sql)
+        {
+            _sqlScriptCollector.Append(sql);
         }
 
         private static int GetPositionOrDefault(TextBox textBox)
@@ -321,13 +326,9 @@ namespace Testing
                     }
                 }
 
-                string sqlInsert = $"INSERT INTO Stores(StoreName, PosX, PosY, Height, Width, Type) VALUES ('{EscapeSql(StoreName)}', {posX}, {posY}, 0, 0, {type});{Environment.NewLine}";
+                string sqlInsert = $"INSERT INTO Stores(StoreName, PosX, PosY, Height, Width, Type) VALUES ('{EscapeSql(StoreName)}', {posX}, {posY}, 0, 0, {type});";
 
-                // Pfad zur SQL-Datei (kann angepasst werden)
-                string filePath = @"C:\soft\configuration.sql";
-
-                // In Datei anhängen
-                File.AppendAllText(filePath, sqlInsert);
+                AppendSqlStatement(sqlInsert);
             }
             catch (Exception ex)
             {
@@ -345,7 +346,6 @@ namespace Testing
                 VALUES  (@Description, @Width, @Height, @Depth, @AssociatedStore, @CapacityCoefficient)
             END";
 
-            string filePath = @"C:\soft\configuration.sql";
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
@@ -374,7 +374,7 @@ namespace Testing
                         ";
 
                         // Anhängen an configuration.sql
-                        File.AppendAllText(filePath, sqlText + Environment.NewLine);
+                        AppendSqlStatement(sqlText);
 
 
                         command.Parameters.Clear();
@@ -448,66 +448,62 @@ namespace Testing
                 doppelSize = true;
             }
 
-            string sqlFilePath = @"C:\soft\configuration.sql";
-
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
                     int inserted = 0;
-                    using (StreamWriter sw = new StreamWriter(sqlFilePath, true))
+                    for (int ebene = (int)von; ebene <= bis; ebene++)
                     {
-                        for (int ebene = (int)von; ebene <= bis; ebene++)
+                        if (Description == "2er Fach klein" || Description == "2er Fach groß" || Description == "6er Fach")
                         {
-                            if (Description == "2er Fach klein" || Description == "2er Fach groß" || Description == "6er Fach")
-                            {
-                                ebene++;
-                            }
-                            using (SqlCommand command = new SqlCommand(insertquery, connection))
-                            {
+                            ebene++;
+                        }
 
-                                for (int i = 1; i <= fachAnzahl; i++)
+                        using (SqlCommand command = new SqlCommand(insertquery, connection))
+                        {
+                            for (int i = 1; i <= fachAnzahl; i++)
+                            {
+                                if (Description == "3er Fach" || Description == "6er Fach")
                                 {
-                                    if (Description == "3er Fach" || Description == "6er Fach")
-                                    {
-                                        i++;
-                                        i++;
-                                    }
-
-                                    if (doppelSize == true && i % 3 != 0)
-                                    {
-                                        sizeId = size;
-                                    }
-                                    else if (doppelSize == true && i % 3 == 0)
-                                    {
-                                        sizeId = size2;
-                                    }
-                                    else
-                                    {
-                                        sizeId = size;
-                                    }
-                                    posCode = $"{modelId - 1}{ebene:D2}{i:D2}";
-                                    command.Parameters.AddWithValue("@SizeId", sizeId);
-                                    command.Parameters.AddWithValue("@PosX", i);
-                                    command.Parameters.AddWithValue("@PosY", ebene);
-                                    command.Parameters.AddWithValue("@PosZ", 0);
-                                    command.Parameters.AddWithValue("@PosCode", posCode);
-                                    command.Parameters.AddWithValue("@Status", 0);
-                                    command.Parameters.AddWithValue("@ReservationLimit", 1);
-                                    command.Parameters.AddWithValue("@StoreId", modelId);
-                                    command.Parameters.AddWithValue("@AddressData", addressDataJson);
-
-                                    inserted += command.ExecuteNonQuery();
-                                    command.Parameters.Clear();
-
-                                    string escapedAddressData = addressDataJson.Replace("\"", "\"\"");
-
-                                    string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES " +
-                                        $"({sizeId}, {i}, {ebene}, 0, '{posCode}', 0, 1, {modelId}, '{escapedAddressData}');";
-
-                                    sw.WriteLine(sqlLine);
+                                    i++;
+                                    i++;
                                 }
+
+                                if (doppelSize == true && i % 3 != 0)
+                                {
+                                    sizeId = size;
+                                }
+                                else if (doppelSize == true && i % 3 == 0)
+                                {
+                                    sizeId = size2;
+                                }
+                                else
+                                {
+                                    sizeId = size;
+                                }
+
+                                posCode = $"{modelId - 1}{ebene:D2}{i:D2}";
+                                command.Parameters.AddWithValue("@SizeId", sizeId);
+                                command.Parameters.AddWithValue("@PosX", i);
+                                command.Parameters.AddWithValue("@PosY", ebene);
+                                command.Parameters.AddWithValue("@PosZ", 0);
+                                command.Parameters.AddWithValue("@PosCode", posCode);
+                                command.Parameters.AddWithValue("@Status", 0);
+                                command.Parameters.AddWithValue("@ReservationLimit", 1);
+                                command.Parameters.AddWithValue("@StoreId", modelId);
+                                command.Parameters.AddWithValue("@AddressData", addressDataJson);
+
+                                inserted += command.ExecuteNonQuery();
+                                command.Parameters.Clear();
+
+                                string escapedAddressData = addressDataJson.Replace("\"", "\"\"");
+
+                                string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES " +
+                                    $"({sizeId}, {i}, {ebene}, 0, '{posCode}', 0, 1, {modelId}, '{escapedAddressData}');";
+
+                                AppendSqlStatement(sqlLine);
                             }
                         }
                     }
@@ -550,7 +546,6 @@ namespace Testing
 
             int anzahl = 5;
 
-            string filePath = @"C:\soft\configuration.sql";
 
             foreach (var eintrag in Sizes.SizeList.Where(f => f.Description == "DUO.Comp.Small"))
             {
@@ -607,7 +602,7 @@ namespace Testing
 
                                 string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) " +
                                          $"VALUES ({size}, {i}, {ebene}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
-                                File.AppendAllText(filePath, sqlLine + Environment.NewLine);
+                                AppendSqlStatement(sqlLine);
                             }
                         }
                     }
@@ -637,7 +632,7 @@ namespace Testing
 
                             string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) " +
                                      $"VALUES ({schublade1}, 1, {i}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
-                            File.AppendAllText(filePath, sqlLine + Environment.NewLine);
+                            AppendSqlStatement(sqlLine);
 
                         }
                         for (int i = 3; i < anzahl; i++)
@@ -658,7 +653,7 @@ namespace Testing
 
                             string sqlLine = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) " +
                                      $"VALUES ({schublade2}, 1, {i}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
-                            File.AppendAllText(filePath, sqlLine + Environment.NewLine);
+                            AppendSqlStatement(sqlLine);
 
                         }
                     }
@@ -699,7 +694,6 @@ namespace Testing
             string connectionString = _SQL_connWarehouse;
             string insertquery = "INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) values (@SizeId, @PosX, @PosY, @PosZ, @PosCode, @Status, @ReservationLimit, @StoreId, @AddressData)";
 
-            string filePath = @"C:\soft\configuration.sql";
 
             foreach (var eintrag in Sizes.SizeList.Where(f => f.Description == "simpli klein"))
             {
@@ -753,7 +747,7 @@ namespace Testing
 
                                 string sqlInsert = $"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES " + $"({size}, {i}, {ebene}, 0, '{EscapeSql(posCode)}', 0, 1, {modelId}, '{EscapeSql(addressDataJson)}');";
 
-                                File.AppendAllText(filePath, sqlInsert + Environment.NewLine);
+                                AppendSqlStatement(sqlInsert);
                             }
                         }
                     }
@@ -954,7 +948,6 @@ namespace Testing
             string deleteQuery = @"DELETE c from Compartments c inner join Stores s on c.StoreId = s.StoreId where s.StoreId = @storeId and s.PosX=@PosX and s.PosY = @PosY";
             string selectQuery = @"Select Count(StoreId) from Compartments c inner join StockItems s on c.CompartmentId = s.CompartmentId where StoreId = @storeId";
 
-            string filePath = @"C:\soft\configuration.sql";
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -985,7 +978,7 @@ namespace Testing
                         string sqlDelete = $"DELETE c FROM Compartments c INNER JOIN Stores s ON c.StoreId = s.StoreId " +
                                   $"WHERE s.StoreId = {storeId} AND s.PosX = {PosX} AND s.PosY = {PosY};";
 
-                        File.AppendAllText(filePath, sqlDelete + Environment.NewLine);
+                        AppendSqlStatement(sqlDelete);
                     }
 
 
@@ -1012,7 +1005,6 @@ namespace Testing
 
             int id = 0;
 
-            string filePath = @"C:\soft\configuration.sql";
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -1040,10 +1032,8 @@ namespace Testing
                         command.ExecuteNonQuery();
                     }
 
-                    string sqlToWrite = $"DELETE FROM Stores WHERE StoreId = {storeId};{Environment.NewLine}" +
-                                $"{resetQuery};{Environment.NewLine}";
-
-                    File.AppendAllText(filePath, sqlToWrite + Environment.NewLine);
+                    AppendSqlStatement($"DELETE FROM Stores WHERE StoreId = {storeId};");
+                    AppendSqlStatement($"{resetQuery};");
                 }
             }
             catch (Exception ex)
@@ -1589,8 +1579,6 @@ namespace Testing
                 VALUES  (@Description, @Width, @Height, @Depth, @AssociatedStore, @CapacityCoefficient)
             END";
 
-            string filePath = @"C:\soft\configuration.sql";
-
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
@@ -1617,7 +1605,7 @@ namespace Testing
                 END
             ";
 
-            File.AppendAllText(filePath, insertSql);
+            AppendSqlStatement(insertSql);
         }
         private void Locker_to_DB(object sender, RoutedEventArgs e)
         {
@@ -1640,9 +1628,6 @@ namespace Testing
             string description = "";
             string address = "";
             int anzahl = 1;
-
-
-            string filePath = @"C:\soft\configuration.sql";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -1689,8 +1674,7 @@ namespace Testing
                     }
                     string sqlText = $@"INSERT INTO Compartments (SizeId, PosX, PosY, PosZ, PosCode, Status, ReservationLimit, StoreId, AddressData) VALUES ({sizeId}, {btn.spalte}, {btn.zeile}, 0, '{EscapeSql(posCode)}', 0, 1, {storeId}, '{EscapeSql(address)}');";
 
-                    // SQL-Befehl ans Ende der Datei anhängen
-                    File.AppendAllText(filePath, sqlText + Environment.NewLine);
+                    AppendSqlStatement(sqlText);
                     anzahl++;
                 }
             }
@@ -1723,7 +1707,6 @@ namespace Testing
             int door = 0;
             int board = 0;
             int letztePort = 0;
-            string filePath = @"C:\soft\configuration.sql";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -1777,8 +1760,7 @@ namespace Testing
                     }
                     string sqlText = $@"INSERT INTO STL (Locker, x, y, Door, Board, size, ip, port, Doorname) VALUES ({Oldget_StoreId()}, {btn.spalte}, {btn.zeile}, {door}, {board}, '{description}', {ip}, {comNr}, '{doorname}');";
 
-                    // SQL-Befehl ans Ende der Datei anhängen
-                    File.AppendAllText(filePath, sqlText + Environment.NewLine);
+                    AppendSqlStatement(sqlText);
                     anzahl++;
                     door++;
                     listComNr[comNr] = door;
@@ -1813,13 +1795,9 @@ namespace Testing
                 }
 
                 int lockerPositionForSql = GetPositionOrDefault(positionX2);
-                string sqlInsert = $"INSERT INTO SerialPorts(AutomatNr, Port, Position, Schranktyp) values ('{automatNr}','STL', {lockerPositionForSql},2);{Environment.NewLine}";
+                string sqlInsert = $"INSERT INTO SerialPorts(AutomatNr, Port, Position, Schranktyp) values ('{automatNr}','STL', {lockerPositionForSql},2);";
 
-                // Pfad zur SQL-Datei (kann angepasst werden)
-                string filePath = @"C:\soft\configuration.sql";
-
-                // In Datei anhängen
-                File.AppendAllText(filePath, sqlInsert);
+                AppendSqlStatement(sqlInsert);
             }
             catch (Exception ex)
             {
@@ -2005,6 +1983,33 @@ namespace Testing
             if (input == null)
                 return null;
             return input.Replace("'", "''");
+        }
+
+        private sealed class SqlScriptCollector
+        {
+            private readonly List<string> _statements = new List<string>();
+
+            public IReadOnlyList<string> Statements => _statements;
+
+            public void Append(string sql)
+            {
+                if (string.IsNullOrWhiteSpace(sql))
+                {
+                    return;
+                }
+
+                _statements.Add(sql.Trim());
+            }
+
+            public string GetScript()
+            {
+                return string.Join(Environment.NewLine, _statements);
+            }
+
+            public void Clear()
+            {
+                _statements.Clear();
+            }
         }
 
     }
