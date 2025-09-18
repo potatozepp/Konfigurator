@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
@@ -40,6 +42,10 @@ namespace Testing
         private string _SQL_connWarehouse = string.Empty;
         private string _SQL_connStoreManager = string.Empty;
         private readonly SqlScriptCollector _sqlScriptCollector = new SqlScriptCollector();
+        private readonly ObservableCollection<StoreModelInfo> _availableStores = new();
+        private StoreModelInfo? _activeStore;
+        private bool _isUpdateMode;
+        private bool _isUiReady;
 
         public MainWindow()
         {
@@ -55,10 +61,14 @@ namespace Testing
             ApplyDefaultInputValues();
             setStores();
             setSizes();
+            existingConfigsList.ItemsSource = _availableStores;
             getStores();
             selectionCanvas.PreviewMouseDown += selectionCanvas_MouseDown;
             selectionCanvas.PreviewMouseMove += selectionCanvas_MouseMove;
             selectionCanvas.PreviewMouseUp += selectionCanvas_MouseUp;
+            _isUiReady = true;
+            SyncCompartmentRanges();
+            UpdateActiveConfigurationInfo();
         }
 
         private void UpdateConnectionString()
@@ -174,26 +184,12 @@ namespace Testing
             return int.TryParse(textBox.Text, out int value) ? value : DefaultPositionValue;
         }
 
-        private static int GetComboBoxNumberOrDefault(ComboBox comboBox)
-        {
-            if (comboBox == null)
-            {
-                return DefaultPositionValue;
-            }
-
-            return int.TryParse(comboBox.Text, out int value) ? value : DefaultPositionValue;
-        }
-
-
         private void InitComboBoxes()
         {
-
-            comboPosX.Items.Add(0);
-            comboPosY.Items.Add(0);
             // Von/Bis-Werte (1–30)
             for (int i = 1; i <= 30; i++)
             {
-                AddItemsToComboBoxes(i, comboBoxVon, comboBoxBis, comboBoxVon2, comboBoxBis2, comboBoxVon3, comboBoxBis3, comboBoxVon4, comboBoxBis4, comboPosX, comboPosY);
+                AddItemsToComboBoxes(i, comboBoxVon, comboBoxBis, comboBoxVon2, comboBoxBis2, comboBoxVon3, comboBoxBis3, comboBoxVon4, comboBoxBis4);
             }
 
             anzahlSchubladen.Items.Add(4);
@@ -214,8 +210,6 @@ namespace Testing
             // Standard-Auswahl setzen
             SetDefaultSelections();
 
-            comboPosX.SelectedItem = DefaultPositionValue;
-            comboPosY.SelectedItem = DefaultPositionValue;
         }
 
         private void AddItemsToComboBoxes(int value, params ComboBox[] boxes)
@@ -247,30 +241,58 @@ namespace Testing
 
         private void Add_Click(object sender, RoutedEventArgs e)
         {
-            int von = 0;
-            int bis = 0;
-            Sizes size = null;
-            int sizeId1 = 0;
-            int sizeId2 = 0;
+            if (comboModel.SelectedItem is not ComboBoxItem item)
+            {
+                MessageBox.Show("Bitte wählen Sie ein Modell aus.");
+                return;
+            }
 
-            ComboBoxItem item = comboModel.SelectedItem as ComboBoxItem;
-            string StoreName = item.Content.ToString();
+            if (!FachInfo.FachListe.Any())
+            {
+                MessageBox.Show("Bitte definieren Sie mindestens einen Fächerbereich.");
+                return;
+            }
+
+            string storeName = item.Content.ToString();
             int type = (int)item.Tag;
             int posX = GetPositionOrDefault(positionX);
             int posY = GetPositionOrDefault(positionY);
             string addressDataJson = BuildAddressDataJson();
 
-            add_Model(StoreName, type, posX, posY);
             add_Sizes();
 
-            int modelId = get_StoreId();
-            int fachAnzahl = 0;
+            bool isUpdating = _isUpdateMode && _activeStore != null;
+            int modelId;
+
+            if (isUpdating)
+            {
+                modelId = _activeStore.StoreId;
+
+                if (!UpdateStoreRecord(modelId, storeName, type, posX, posY))
+                {
+                    MessageBox.Show("Der ausgewählte Store konnte nicht aktualisiert werden.");
+                    return;
+                }
+
+                if (!DeleteCompartmentsForStore(modelId))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                add_Model(storeName, type, posX, posY);
+                modelId = get_StoreId();
+            }
 
             foreach (var eintrag in FachInfo.FachListe)
             {
-                von = eintrag.EbeneVon;
-                bis = eintrag.EbeneBis;
-                size = eintrag.Size;
+                int von = eintrag.EbeneVon;
+                int bis = eintrag.EbeneBis;
+                Sizes size = eintrag.Size;
+                int sizeId1 = 0;
+                int sizeId2 = 0;
+
                 if (size.Description == "1er Fach klein")
                 {
                     sizeId2 = get_SizeId("1er Fach groß");
@@ -291,15 +313,23 @@ namespace Testing
                     sizeId1 = get_SizeId("2er Fach klein");
                     sizeId2 = get_SizeId(size.Description);
                 }
-                fachAnzahl = size.faecherInEbene;
+                int fachAnzahl = size.faecherInEbene;
 
                 add_to_Db(von, bis, sizeId1, sizeId2, modelId, fachAnzahl, size, addressDataJson);
             }
 
-            MessageBox.Show("in DB eingefügt");
+            MessageBox.Show(isUpdating ? "Konfiguration aktualisiert." : "Konfiguration gespeichert.");
+
+            if (isUpdating)
+            {
+                _activeStore = null;
+                _isUpdateMode = false;
+            }
+
             FachInfo.FachListe.Clear();
             RefreshListBox();
             getStores();
+            UpdateActiveConfigurationInfo();
         }
 
         private void add_Model(string StoreName, int type, int posX, int posY)
@@ -826,6 +856,7 @@ namespace Testing
 
             }
 
+            SyncCompartmentRanges();
         }
 
         private void boxVonBis_Changed(object sender, SelectionChangedEventArgs e)
@@ -845,6 +876,7 @@ namespace Testing
                     panel2.Visibility = Visibility.Hidden;
                     panel3.Visibility = Visibility.Hidden;
                     panel4.Visibility = Visibility.Hidden;
+                    SyncCompartmentRanges();
                     return;
                 }
                 comboBoxVon2.SelectedIndex = bis;
@@ -855,6 +887,7 @@ namespace Testing
                     panel3.Visibility = Visibility.Hidden;
                     panel4.Visibility = Visibility.Hidden;
                     panel5.Visibility = Visibility.Hidden;
+                    SyncCompartmentRanges();
                     return;
                 }
                 if (von2 > bis2)
@@ -862,6 +895,7 @@ namespace Testing
                     panel5.Visibility = Visibility.Visible;
                     panel3.Visibility = Visibility.Hidden;
                     panel4.Visibility = Visibility.Hidden;
+                    SyncCompartmentRanges();
                     return;
                 }
                 panel5.Visibility = Visibility.Hidden;
@@ -872,12 +906,14 @@ namespace Testing
                 {
                     panel4.Visibility = Visibility.Hidden;
                     panel5.Visibility = Visibility.Hidden;
+                    SyncCompartmentRanges();
                     return;
                 }
                 if (von3 > bis3)
                 {
                     panel5.Visibility = Visibility.Visible;
                     panel4.Visibility = Visibility.Hidden;
+                    SyncCompartmentRanges();
                     return;
                 }
                 panel5.Visibility = Visibility.Hidden;
@@ -891,13 +927,63 @@ namespace Testing
 
 
             }
+            SyncCompartmentRanges();
+        }
+
+        private void RangeSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isUiReady)
+            {
+                return;
+            }
+
+            SyncCompartmentRanges();
+        }
+
+        private void SyncCompartmentRanges()
+        {
+            if (!_isUiReady)
+            {
+                return;
+            }
+
+            var panels = new[] { panel, panel2, panel3, panel4 };
+            var fromBoxes = new[] { comboBoxVon, comboBoxVon2, comboBoxVon3, comboBoxVon4 };
+            var toBoxes = new[] { comboBoxBis, comboBoxBis2, comboBoxBis3, comboBoxBis4 };
+            var sizeBoxes = new[] { comboBoxSize, comboBoxSize2, comboBoxSize3, comboBoxSize4 };
+
+            FachInfo.FachListe.Clear();
+
+            for (int index = 0; index < panels.Length; index++)
+            {
+                if (panels[index].Visibility != Visibility.Visible)
+                {
+                    continue;
+                }
+
+                if (fromBoxes[index].SelectedItem is int from && toBoxes[index].SelectedItem is int to && from <= to)
+                {
+                    if (sizeBoxes[index].SelectedItem is ComboBoxItem sizeItem && sizeItem.Tag is Sizes size)
+                    {
+                        FachInfo.FachListe.Add(new FachInfo
+                        {
+                            Zeile = index,
+                            EbeneVon = from,
+                            EbeneBis = to,
+                            Size = size
+                        });
+                    }
+                }
+            }
+
+            RefreshListBox();
         }
 
         private void getStores()
         {
             UpdateConnectionString();
             string connectionString = _SQL_connWarehouse;
-            string query = "SELECT StoreId, StoreName, Type FROM Stores";
+            string query = "SELECT StoreId, StoreName, Type, PosX, PosY FROM Stores ORDER BY StoreName";
 
             try
             {
@@ -908,21 +994,25 @@ namespace Testing
                     using (SqlCommand command = new SqlCommand(query, connection))
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
-
-                        comboStores.Items.Clear();
+                        _availableStores.Clear();
                         while (reader.Read())
                         {
                             int StoreId = (int)reader["StoreId"];
                             string StoreName = reader["StoreName"].ToString();
                             int type = (int)reader["Type"];
+                            int posX = reader["PosX"] is DBNull ? 0 : (int)reader["PosX"];
+                            int posY = reader["PosY"] is DBNull ? 0 : (int)reader["PosY"];
 
-                            StoreModelInfo eintrag = new StoreModelInfo { StoreId = StoreId, StoreName = StoreName, Type = type };
-
-                            comboStores.Items.Add(new ComboBoxItem
+                            StoreModelInfo eintrag = new StoreModelInfo
                             {
-                                Content = StoreName,
-                                Tag = StoreId
-                            });
+                                StoreId = StoreId,
+                                StoreName = StoreName,
+                                Type = type,
+                                PosX = posX,
+                                PosY = posY
+                            };
+
+                            _availableStores.Add(eintrag);
                         }
                     }
                 }
@@ -936,17 +1026,12 @@ namespace Testing
             }
         }
 
-        private void delete_Compartments()
+        private bool DeleteCompartmentsForStore(int storeId)
         {
-            var selectedStore = comboStores.SelectedItem as ComboBoxItem;
-            int storeId = (int)selectedStore.Tag;
-            int PosX = GetComboBoxNumberOrDefault(comboPosX);
-            int PosY = GetComboBoxNumberOrDefault(comboPosY);
-
             UpdateConnectionString();
             string connectionString = _SQL_connWarehouse;
-            string deleteQuery = @"DELETE c from Compartments c inner join Stores s on c.StoreId = s.StoreId where s.StoreId = @storeId and s.PosX=@PosX and s.PosY = @PosY";
-            string selectQuery = @"Select Count(StoreId) from Compartments c inner join StockItems s on c.CompartmentId = s.CompartmentId where StoreId = @storeId";
+            string deleteQuery = "DELETE FROM Compartments WHERE StoreId = @StoreId";
+            string selectQuery = @"Select Count(StoreId) from Compartments c inner join StockItems s on c.CompartmentId = s.CompartmentId where StoreId = @StoreId";
 
             try
             {
@@ -954,149 +1039,276 @@ namespace Testing
                 {
                     connection.Open();
 
-                    int totalBeforeDelete = 0;
                     using (SqlCommand command = new SqlCommand(selectQuery, connection))
                     {
-                        command.Parameters.AddWithValue("@storeId", storeId);
-                        totalBeforeDelete = (int)command.ExecuteScalar(); 
+                        command.Parameters.AddWithValue("@StoreId", storeId);
+                        int totalBeforeDelete = (int)command.ExecuteScalar();
+                        if (totalBeforeDelete != 0)
+                        {
+                            MessageBox.Show("Manche Fächer haben noch Artikel. Bitte davor löschen");
+                            return false;
+                        }
                     }
-                    if (totalBeforeDelete != 0)
-                    {
-                        MessageBox.Show("Manche Fächer haben noch Artikel. Bitte davor löschen");
-                        return;
-                    }
-                    int rowsAffected = 0;
+
                     using (SqlCommand command = new SqlCommand(deleteQuery, connection))
                     {
-                        command.Parameters.AddWithValue("@storeId", storeId);
-                        command.Parameters.AddWithValue("@PosX", PosX);
-                        command.Parameters.AddWithValue("@PosY", PosY);
-                        rowsAffected = command.ExecuteNonQuery();
-
-                        MessageBox.Show($"{rowsAffected} Zeile gelöscht");
-
-                        string sqlDelete = $"DELETE c FROM Compartments c INNER JOIN Stores s ON c.StoreId = s.StoreId " +
-                                  $"WHERE s.StoreId = {storeId} AND s.PosX = {PosX} AND s.PosY = {PosY};";
-
-                        AppendSqlStatement(sqlDelete);
+                        command.Parameters.AddWithValue("@StoreId", storeId);
+                        command.ExecuteNonQuery();
                     }
-
-
                 }
+
+                AppendSqlStatement($"DELETE FROM Compartments WHERE StoreId = {storeId};");
+                return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Fehler beim Löschen:/n" + ex.Message);
+                MessageBox.Show("Fehler beim Löschen: " + ex.Message);
+                return false;
             }
         }
 
-        private void delete_Model()
+        private void DeleteStoreRecord(int storeId)
         {
-            var selectedStore = comboStores.SelectedItem as ComboBoxItem;
-            int storeId = (int)selectedStore.Tag;
-
             UpdateConnectionString();
             string connectionString = _SQL_connWarehouse;
-            string deleteQuery = @"Delete from Stores where StoreId = @storeId";
-
-            string resetQuery = "";
-
-            string selectQuery = "Select top(1) StoreId from Stores order by StoreId DESC";
-
-            int id = 0;
+            string deleteQuery = "DELETE FROM Stores WHERE StoreId = @StoreId";
+            string resetQuery = "DECLARE @MaxId INT = (SELECT ISNULL(MAX(StoreId),0) FROM Stores); DBCC CHECKIDENT('Stores', RESEED, @MaxId);";
 
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
+
                     using (SqlCommand command = new SqlCommand(deleteQuery, connection))
                     {
-                        command.Parameters.AddWithValue("@storeId", storeId);
+                        command.Parameters.AddWithValue("@StoreId", storeId);
                         command.ExecuteNonQuery();
                     }
-                    using (SqlCommand command = new SqlCommand(selectQuery, connection))
-                    {
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                id = (int)reader["StoreId"];
-                            }
 
-                            resetQuery = $"DBCC CHECKIDENT('Stores', RESEED, {id})";
-                        }
-                    }
                     using (SqlCommand command = new SqlCommand(resetQuery, connection))
                     {
                         command.ExecuteNonQuery();
                     }
-
-                    AppendSqlStatement($"DELETE FROM Stores WHERE StoreId = {storeId};");
-                    AppendSqlStatement($"{resetQuery};");
                 }
+
+                AppendSqlStatement($"DELETE FROM Stores WHERE StoreId = {storeId};");
+                AppendSqlStatement("DECLARE @MaxId INT = (SELECT ISNULL(MAX(StoreId),0) FROM Stores); DBCC CHECKIDENT('Stores', RESEED, @MaxId);");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Fehler beim Löschen des Stores");
+                MessageBox.Show("Fehler beim Löschen des Stores: " + ex.Message);
             }
-
         }
 
-        private void Delete_Click(object sender, RoutedEventArgs e)
+        private bool UpdateStoreRecord(int storeId, string storeName, int type, int posX, int posY)
         {
-            delete_Compartments();
-            delete_Model();
+            UpdateConnectionString();
+            string connectionString = _SQL_connWarehouse;
+            string updateQuery = "UPDATE Stores SET StoreName = @StoreName, PosX = @PosX, PosY = @PosY, Type = @Type WHERE StoreId = @StoreId";
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (SqlCommand command = new SqlCommand(updateQuery, connection))
+                    {
+                        command.Parameters.AddWithValue("@StoreName", storeName);
+                        command.Parameters.AddWithValue("@PosX", posX);
+                        command.Parameters.AddWithValue("@PosY", posY);
+                        command.Parameters.AddWithValue("@Type", type);
+                        command.Parameters.AddWithValue("@StoreId", storeId);
+                        command.ExecuteNonQuery();
+                    }
+                }
+
+                AppendSqlStatement($"UPDATE Stores SET StoreName = '{EscapeSql(storeName)}', PosX = {posX}, PosY = {posY}, Type = {type} WHERE StoreId = {storeId};");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Fehler beim Aktualisieren des Stores: " + ex.Message);
+                return false;
+            }
+        }
+
+        private void DeleteSelectedConfiguration_Click(object sender, RoutedEventArgs e)
+        {
+            if (existingConfigsList.SelectedItem is not StoreModelInfo store)
+            {
+                return;
+            }
+
+            var result = MessageBox.Show($"Soll die Konfiguration '{store.StoreName}' wirklich gelöscht werden?", "Löschen bestätigen", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            if (!DeleteCompartmentsForStore(store.StoreId))
+            {
+                return;
+            }
+
+            DeleteStoreRecord(store.StoreId);
+            MessageBox.Show("Konfiguration wurde gelöscht.");
+
+            if (_activeStore?.StoreId == store.StoreId)
+            {
+                _activeStore = null;
+                _isUpdateMode = false;
+                ResetConfigurationInputs();
+            }
+
+            existingConfigsList.SelectedItem = null;
+            getStores();
+            UpdateActiveConfigurationInfo();
+        }
+
+        private void RefreshConfigurations_Click(object sender, RoutedEventArgs e)
+        {
             getStores();
         }
 
-        private void Add_List(object sender, RoutedEventArgs e)
+        private void ExistingConfigsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            List<ComboBox> comboBoxVonList = new List<ComboBox> { comboBoxVon, comboBoxVon2, comboBoxVon3, comboBoxVon4 };
-            List<ComboBox> comboBoxBisList = new List<ComboBox> { comboBoxBis, comboBoxBis2, comboBoxBis3, comboBoxBis4 };
-            List<ComboBox> comboBoxSizeList = new List<ComboBox> { comboBoxSize, comboBoxSize2, comboBoxSize3, comboBoxSize4 };
-
-            Button clickedButton = sender as Button;
-            string tag = clickedButton?.Tag?.ToString();
-            int zahl = int.Parse(tag);
-            int von = 0;
-            int bis = 0;
-            Sizes sizes = null;
-            int size = 0;
-
-
-            if (zahl >= 0 && zahl < comboBoxVonList.Count && zahl < comboBoxBisList.Count && zahl < comboBoxSizeList.Count)
+            bool hasSelection = existingConfigsList.SelectedItem is StoreModelInfo;
+            if (btnLoadSelected != null)
             {
-                ComboBox boxVon = comboBoxVonList[zahl];
-                ComboBox boxBis = comboBoxBisList[zahl];
-                ComboBox boxSize = comboBoxSizeList[zahl];
-                ComboBoxItem sizeItem = boxSize.SelectedItem as ComboBoxItem;
-
-                von = (int)boxVon.SelectedItem;
-                bis = (int)boxBis.SelectedItem;
-                sizes = (Sizes)sizeItem.Tag;
+                btnLoadSelected.IsEnabled = hasSelection;
             }
-            FachInfo.Hinzufügen(zahl, von, bis, sizes);
-
-            RefreshListBox();
+            if (btnDeleteSelected != null)
+            {
+                btnDeleteSelected.IsEnabled = hasSelection;
+            }
         }
 
-        private void Remove_Click(object sender, RoutedEventArgs e)
+        private void LoadConfiguration_Click(object sender, RoutedEventArgs e)
         {
-            Button clickedButton = sender as Button;
-            string tag = clickedButton?.Tag?.ToString();
-            int zeile = int.Parse(tag);
+            if (existingConfigsList.SelectedItem is not StoreModelInfo store)
+            {
+                return;
+            }
 
+            _activeStore = store;
+            _isUpdateMode = true;
 
-            FachInfo.Entfernen(zeile);
+            SelectModelByType(store.Type);
+            positionX.Text = store.PosX.ToString();
+            positionY.Text = store.PosY.ToString();
+
+            string? port = LoadAddressDataForStore(store.StoreId);
+            addressData.Text = string.IsNullOrWhiteSpace(port) ? DefaultAddressData : port;
+
+            SetDefaultSelections();
+            SyncCompartmentRanges();
             RefreshListBox();
+
+            UpdateActiveConfigurationInfo();
+            MessageBox.Show("Konfiguration geladen. Änderungen können jetzt gespeichert werden.");
+        }
+
+        private void StartNewConfiguration_Click(object sender, RoutedEventArgs e)
+        {
+            _activeStore = null;
+            _isUpdateMode = false;
+            existingConfigsList.SelectedItem = null;
+            ResetConfigurationInputs();
+            UpdateActiveConfigurationInfo();
+        }
+
+        private void ApplyRanges_Click(object sender, RoutedEventArgs e)
+        {
+            SyncCompartmentRanges();
+        }
+
+        private void ResetConfigurationInputs()
+        {
+            if (comboModel.Items.Count > 0)
+            {
+                comboModel.SelectedIndex = 0;
+            }
+            SetDefaultSelections();
+            FachInfo.FachListe.Clear();
+            RefreshListBox();
+            positionX.Text = DefaultPositionValue.ToString();
+            positionY.Text = DefaultPositionValue.ToString();
+            positionX2.Text = DefaultPositionValue.ToString();
+            positionY2.Text = DefaultPositionValue.ToString();
+            addressData.Text = DefaultAddressData;
+            SyncCompartmentRanges();
+        }
+
+        private void UpdateActiveConfigurationInfo()
+        {
+            if (_isUpdateMode && _activeStore != null)
+            {
+                activeConfigurationText.Text = "Bestehende Konfiguration bearbeiten";
+                activeConfigurationDetails.Text = $"Store #{_activeStore.StoreId} – {_activeStore.StoreName} (Typ {_activeStore.Type})";
+            }
+            else
+            {
+                activeConfigurationText.Text = "Neue Konfiguration";
+                activeConfigurationDetails.Text = "Es wurden noch keine bestehenden Systeme geladen.";
+            }
+        }
+
+        private void SelectModelByType(int type)
+        {
+            foreach (var element in comboModel.Items)
+            {
+                if (element is ComboBoxItem comboItem && comboItem.Tag is int tag && tag == type)
+                {
+                    comboModel.SelectedItem = comboItem;
+                    return;
+                }
+            }
+        }
+
+        private string? LoadAddressDataForStore(int storeId)
+        {
+            UpdateConnectionString();
+            string connectionString = _SQL_connWarehouse;
+            string query = "SELECT TOP(1) AddressData FROM Compartments WHERE StoreId = @StoreId AND AddressData IS NOT NULL";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@StoreId", storeId);
+                    object result = command.ExecuteScalar();
+                    if (result is string addressDataValue)
+                    {
+                        return ExtractPortFromAddressData(addressDataValue);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static string ExtractPortFromAddressData(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return DefaultAddressData;
+            }
+
+            var match = System.Text.RegularExpressions.Regex.Match(json, "\"Port\"\\s*:\\s*\"(?<port>[^\"]+)\"");
+            if (match.Success)
+            {
+                return match.Groups["port"].Value;
+            }
+
+            return DefaultAddressData;
         }
 
         private void RefreshListBox()
         {
-            var eintreage = FachInfo.FachListe.Cast<FachInfo>().OrderBy(f => f.Zeile);
             listBoxAdd.Items.Clear();
-            foreach (var eintrag in eintreage)
+            foreach (var eintrag in FachInfo.FachListe.OrderBy(f => f.Zeile))
             {
                 listBoxAdd.Items.Add(eintrag);
             }
@@ -1149,25 +1361,6 @@ namespace Testing
 
             public static List<FachInfo> FachListe { get; private set; } = new List<FachInfo>();
 
-            public static void Hinzufügen(int zeile, int von, int bis, Sizes size)
-            {
-                var neuesFach = new FachInfo
-                {
-                    Zeile = zeile,
-                    EbeneVon = von,
-                    EbeneBis = bis,
-                    Size = size
-                };
-
-                FachListe.Add(neuesFach);
-            }
-
-            public static void Entfernen(int zeile)
-            {
-                FachListe.RemoveAll(f => f.Zeile == zeile);
-            }
-
-
             public override string ToString()
             {
                 return $"Von: {EbeneVon}, Bis: {EbeneBis}, Size: {Size.Description}";
@@ -1178,6 +1371,8 @@ namespace Testing
             public int StoreId { get; set; }
             public string StoreName { get; set; }
             public int Type { get; set; }
+            public int PosX { get; set; }
+            public int PosY { get; set; }
 
             public static List<StoreModelInfo> ModellListe { get; private set; } = new List<StoreModelInfo>();
 
@@ -1205,7 +1400,7 @@ namespace Testing
 
             public override string ToString()
             {
-                return $"ID: {StoreId}, Name: {StoreName}, Type: {Type}";
+                return $"ID: {StoreId}, Name: {StoreName}, Type: {Type}, PosX: {PosX}, PosY: {PosY}";
             }
         }
 
