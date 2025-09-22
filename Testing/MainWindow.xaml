@@ -170,7 +170,7 @@
                                     <ColumnDefinition Width="3*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="scrollViewer" Grid.Column="0" VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="0">
                                         <GroupBox Header="Schrankeinstellungen" Margin="0,0,0,16">
                                             <StackPanel>
